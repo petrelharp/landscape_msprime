@@ -1,22 +1,6 @@
 import msprime
 import numpy as np
-
-def read_migration_matrix(fname):
-    f = open(fname, "r")
-    header = f.readline().split()
-    f.close()
-    i = np.loadtxt(fname, skiprows=1, usecols=header.index('"i"'), dtype='int16')
-    j = np.loadtxt(fname, skiprows=1, usecols=header.index('"j"'), dtype='int16')
-    x = np.loadtxt(fname, skiprows=1, usecols=header.index('"x"'))
-    ids = list(set(list(set(i)) + list(set(j))))
-    ids.sort()
-    M = np.empty((len(ids), len(ids)))
-    for ii, jj, xx in zip(i, j, x):
-        M[ii, jj] = xx
-    # msprime wants diag elements to be zero
-    for ii in ids:
-        M[ii, ii] = 0.0
-    return M
+import landscape_msprime
 
 
 def migration_example(num_replicates=1):
@@ -35,20 +19,21 @@ def migration_example(num_replicates=1):
     change_factors = [1.0 + 0.5 * np.sin(2*np.pi*t/20) for t in change_times]
     demographic_events = [
         msprime.PopulationParametersChange(
-            time=t, initial_size=change_factors, growth_rate=0, population_id=None),
-        for t in change_times]
+            time=t, initial_size=x, growth_rate=0)
+        for t, x in zip(change_times, change_factors)]
 
     # Use the demography debugger to print out the demographic history
     # that we have just described.
     dd = msprime.DemographyDebugger(
         population_configurations=population_configurations,
-        migration_matrix=migration_matrix,
+        migration_matrix=M,
         demographic_events=demographic_events)
     dd.print_history()
 
     # run the simulation
     replicates = msprime.simulate(
         population_configurations=population_configurations,
+        demographic_events=demographic_events,
         migration_matrix=M,
         num_replicates=num_replicates)
 
