@@ -3,24 +3,49 @@ import numpy as np
 import itertools
 import random
 
-from tools import *
+def samples_without_replacement(x, k):
+    combns = itertools.combinations(x, k)
+    for c in combns:
+        for d in itertools.permutations(c):
+            yield d
 
-def read_migration_matrix(fname):
-    f = open(fname, "r")
-    header = f.readline().split()
-    f.close()
-    i = np.loadtxt(fname, skiprows=1, usecols=header.index('"i"'), dtype='int16')
-    j = np.loadtxt(fname, skiprows=1, usecols=header.index('"j"'), dtype='int16')
-    x = np.loadtxt(fname, skiprows=1, usecols=header.index('"x"'))
-    ids = list(set(list(set(i)) + list(set(j))))
-    ids.sort()
-    M = np.empty((len(ids), len(ids)))
-    for ii, jj, xx in zip(i, j, x):
-        M[ii, jj] = xx
-    # msprime wants diag elements to be zero
-    for ii in ids:
-        M[ii, ii] = 0.0
-    return M
+
+def random_filtered_samples(f, x, k, n, replace=True, max_resamples=1e3):
+    """
+    Returns n randomly chosen *nonrepeating* samples of size k
+    from x, sampling with or without replacement, filtered by f.
+    If n is None, returns all of them.
+    """
+    if replace and (k > len(x)):
+        raise ValueError("Not enough elements of x.")
+    if replace:
+        num_samples = len(x)**k
+    else:
+        num_samples = np.prod([len(x) - j for j in range(k)])
+    if n is None:
+        n = num_samples
+    if n > num_samples:
+        raise ValueError("There aren't that many samples.")
+    if (num_samples < 1e6) or (n > 0.125 * num_samples):
+        if replace:
+            out = list(filter(f, itertools.product(x, repeat=k)))
+        else:
+            out = list(filter(f, samples_without_replacement(x, k)))
+        random.shuffle(out)
+        return out[:n]
+    else:
+        n_resamples = 0
+        out = []
+        j = 0
+        while len(out) < n and n_resamples < max_resamples:
+            samples = [np.random.choice(x, size=k, replace=replace) 
+                       for _ in range(2*n)]
+            out += list(filter(f, samples))
+            n_resamples += 1
+        # this should raise some actual error
+        assert(n_resamples < max_resamples)
+        return out[:n]
+
 
 def generate_stat_indices(stat, num_sets, nstats=None):
     """
@@ -83,8 +108,3 @@ def compute_stat(ts, statname, nstats):
     x[:,0] = branch_fn(A, [0, ts.sequence_length], inds)[0]
     x[:,1] = site_fn(A, [0, ts.sequence_length], inds)[0]
     return x
-
-
-def f(x) : 
-    return (x[0] < x[1]) & (x[2] < x[3]) & (x[0] < x[2])
-

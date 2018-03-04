@@ -2,11 +2,10 @@ import msprime
 import numpy as np
 import time
 
-from landscape_msprime import *
-
+import landscape_msprime as lmsp
 
 def run_sim(migr_matrix_file, nsamples, **kwargs):
-    M = read_migration_matrix(migr_matrix_file)
+    M = lmsp.read_migration_matrix(migr_matrix_file)
     assert(M.shape[0] == M.shape[1])
     n = M.shape[0]
     print("Simulating on a landscape of {} patches.".format(n))
@@ -39,7 +38,7 @@ if __name__ == "__main__":
     for statname in ("f2", "f3", "f4", "Y2", "Y3"):
         print("Computing {} statistics: {}".format(nstats, statname))
         begin_time = time.time()
-        x = compute_stat(ts, statname, nstats)
+        x = lmsp.compute_stat(ts, statname, nstats)
         end_time = time.time()
         print("Computing statistics took {} seconds.".format(end_time - begin_time))
         outf = open("nussear_8x.{}.tsv".format(statname), "w")
