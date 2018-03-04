@@ -31,7 +31,8 @@ def random_filtered_samples(f, x, k, n, replace=True, max_resamples=1e3):
             out = list(filter(f, itertools.product(x, repeat=k)))
         else:
             out = list(filter(f, samples_without_replacement(x, k)))
-        return random.shuffle(out)[:n]
+        random.shuffle(out)
+        return out[:n]
     else:
         n_resamples = 0
         out = []

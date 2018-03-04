@@ -5,7 +5,7 @@ import time
 from landscape_msprime import *
 
 
-def run_sim(migr_matrix_file, nsamples=1, **kwargs):
+def run_sim(migr_matrix_file, nsamples, **kwargs):
     M = read_migration_matrix(migr_matrix_file)
     assert(M.shape[0] == M.shape[1])
     n = M.shape[0]
@@ -30,11 +30,12 @@ def run_sim(migr_matrix_file, nsamples=1, **kwargs):
 
 
 if __name__ == "__main__":
-    ts = run_sim("nussear_8x.migr.tsv", nsamples=2, 
+    ts = run_sim("nussear_8x.migr.tsv", 
+            nsamples=500, 
             length=1e6, Ne=1e4,
             recombination_rate=1e-8,
             mutation_rate=1e-8)
-    nstats = 1000
+    nstats = 100
     for statname in ("f2", "f3", "f4", "Y2", "Y3"):
         print("Computing {} statistics: {}".format(nstats, statname))
         begin_time = time.time()
@@ -42,7 +43,7 @@ if __name__ == "__main__":
         end_time = time.time()
         print("Computing statistics took {} seconds.".format(end_time - begin_time))
         outf = open("nussear_8x.{}.tsv".format(statname), "w")
-        outf.write("branch_{}\tsite_{}\n".format(statname))
+        outf.write("branch_{}\tsite_{}\n".format(statname, statname))
         for i in range(x.shape[0]):
             outf.write("{}\t{}\n".format(x[i,0], x[i,1]))
         outf.close()
