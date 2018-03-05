@@ -41,6 +41,7 @@ def random_filtered_samples(f, x, k, n, replace=True, max_resamples=1e3):
             samples = [np.random.choice(x, size=k, replace=replace) 
                        for _ in range(2*n)]
             out += list(filter(f, samples))
+            out = list(set(out))
             n_resamples += 1
         # this should raise some actual error
         assert(n_resamples < max_resamples)
