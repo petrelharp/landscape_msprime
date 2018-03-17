@@ -1,0 +1,112 @@
+# Summary
+
+1. Dispersal kernel: Gaussian, with sd 50m to 100m
+
+2. Spatial locations: in coordsXY.csv
+
+3. Prior to 20Kya, keep the population configuration constant.
+
+
+# Future additions
+
+## Barriers:
+
+> alternatively, and maybe better: if you worked out a DEM-based multiplier for each pair of adjacent populations, I could just multiply the migration matrices by this.  (e.g., you give me B_{ij}, where if cells i and j are separated by mountains, then B_{ij} = 0; and if the cells have no barrier between them, B_{ij} = 1; then I compute M_{ij} in flat space and use M_{ij} * B_{ij} as the migration matrix)
+
+well, we have been thinking along the same lines with Eniko... I suppose that the alternative solution is better. However, I suggest to ignore this for now, and we can add this layer of DEM multipliers later.
+
+
+# Notes
+
+We have ~350 SNPs for 1100 individuals from 53 populations across Europe and we
+would like to simulate SNP data to assess if the observed genetic diversity
+levels can be explained by population size/isolation or demographic history
+(such as founder effect).
+
+We also have independent data on the demographic history from a climate/pollen
+modelling study, more specifically, we have the estimated population size at
+each grid in every 10 years for the last 22000 years. The total number of
+individuals on the whole grid is between 2-5 billion, and our grid is of 55x70
+(with many empty spots).
+Overall, it's a recolonization history with a huge bottleneck ~15 000 years ago.
+A thousand nonempty cells sounds about right. We have population density estimates for 2204 time points.
+
+My original plan was to use this data set to test the central-marginal
+hypothesis. Silver fir has a very fragmented distribution and an important
+variation is population size.However, current population size didn't explain
+the observed diversity patterns at all. In contrast, it seems extremely likely
+that demographic history is the main factor that shapes diversity patterns. It
+wouldn't be too surprising because Ne is so big that any changes in diversity
+levels are extremely show. Now, we would like to show it with simulations of
+increasing complexity.
+
+
+have a grid of 55x70, for each grid we know the population sizes for 2204 time
+points starting 20 000 years ago, ending today. (Do we need to calculate
+migration rates from the population sizes or we can define the migration matrix
+based on other things, such as wind directions, dispersal distances, or
+geographical barriers?) We would like to sample in total 1100 individuals from
+53 locations. Some of these locations fall on the same grid though. And the
+final goal is to have a sequence of 350 independent loci for all these
+individuals. And repeat this several times, that we can compare the diversity
+to the real data we have and see whether the population history/migration
+pattern explains what we observe. 
+
+> Oh, and also: what should happen *before* 20 000 years ago?  Merge into a single population?
+
+We suspect that all individuals can be traced back to an ancestral population that was situated somewhere on the southern part of the Apennines, so yes, merge to a single population would be realistic.
+
+
+> the original netcdf is 2.3 GB (DGVM_data/abiesalba_h1x1.cdf), 
+
+It contains the raw data from the climate modelling. It's mainly the variable
+fpc in it that interests us because this is our indicator of population size
+for each grid. Eniko's been working on translating fpc to population size and
+she will send this to you.
+
+So, actually you don't need to worry about this file much for now, however, if
+you want to look to have a feel for the data: look
+Dropbox/DGVM_data/read_netcdf.r and you will quickly understand what kind of
+info we have from the climate modellers.
+ 
+
+> 1. spatial configuration (size and locatoin) of the grid cells
+
+Eniko will send this.
+ 
+> 2. how big the ancestral population this should merge into at 20K years ago should be
+
+this will be a wild guess for now, and then we can elaborate on it. 
+@Eniko, can you tell the total population size at the first time slot?
+@Peter, would it be possible to have a spatially non-explicit part for the pre-20K times and then distribute the trees on the grids?
+ 
+> 3. what to use as the mean dispersal distance, and if a Gaussian kernel is most appropriate or if a different kernel is better
+
+Gaussian will do the job. We know from fine-scale spatial genetic studies that relatedness decays within 50 to 100m, so this figure could be a starting point. 
+ 
+> 4. where the 1100 sampled individuals were located
+
+Dropbox/SNP_data/coordsXY.csv
+ 
+
+If you want to include geographic barriers to migration, I'd need you to work out where/when those would be.  Options include:
+
+> 1. don't worry about barriers, treating all grid squares the same (this seems fine on the resolution we're working on?) 
+
+sure this would be fine, but we have holes on the grid, mainly where there is the sea. This info can be included as barriers. 
+@Eniko could you get this matrix of go vs no-go grids?
+ 
+> 2. you give me a list of pairs of adjacent grid squares that should not have any migration between them
+
+Then we could use the DEM to define further barriers (eg the Alps).
+@Peter: could we also give a specific migration matrix where the migration is adjusted according to the length of the barrier that separates the two grids?
+
+Apart from barriers, it's also quite obvious that it's easier to migrate W<->E than S<->N due to climate differences, maybe worth considering?
+
+## About the density estimate
+
+It is an estimate, calculated from the size of the grid, the proportion of the
+grid that is not occupied by water, the coverage, and assuming that one tree
+needs 40m^2. This number comes from the Ruousch paper's supplement, but if the
+simulations are fast we could assume more sparse/dense structures.
+
