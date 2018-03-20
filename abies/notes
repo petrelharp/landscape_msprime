@@ -1,10 +1,12 @@
 # Summary
 
-1. Dispersal kernel: Gaussian, with sd 50m to 100m
+1. Dispersal kernel: Cauchy, with sd 50m to 100m
 
-2. Spatial locations: in coordsXY.csv
+2. Generation time: 50 years.
 
-3. Prior to 20Kya, keep the population configuration constant.
+3. Spatial locations: in coordsXY.csv
+
+4. Prior to 20Kya, keep the population configuration constant.
 
 
 # Future additions
@@ -16,7 +18,37 @@
 well, we have been thinking along the same lines with Eniko... I suppose that the alternative solution is better. However, I suggest to ignore this for now, and we can add this layer of DEM multipliers later.
 
 
+## Dispersal kernel
+
+> Cauchy... we need still an estimate of "typical distance" and something like "with 1/1000 pollination events happening across a scale of 5km".
+
+this sounds perfect.
+ 
+
 # Notes
+
+
+> computing total number of trees per grid cell as
+>  (1-lu.area[,,t])*area*fpc.grid[,,10,t]/40
+
+this isn't correct. it should be lu.area[,,t] and not 1-lu.area[,,t]
+
+taking this into account, the total number of individuals doubles from time 1 to 2204, we go from 5 billion to 10 billion. Some notes:
+* area is the grid area taking into account the projection (small grid towards the north)
+* lu.area is the proportion of the area where forests and grasslands are possible (excludes coastlines, lakes)
+* 40 is the m2 as area needed for an adult reproducing tree (guess)
+* fpc: occurrence probability for each species calculated by the climate model (Abies alba is species 10)
+
+DGVM_data/Rfornetcdf.r has my script with comments, which should be useful
+
+> what is a reaonsable guess at mean generation time? (this is: for an average individual, how old was their parent when they were born)
+
+25 years has been used before for related species, but 50 might be closer to reality because Abies alba is a shade-liking non-pioneer species.
+
+Another comment on the migration rates, it is often cited that effective pollen dispersal can be up to 100km. However, I wouldn't use this figure because trees cannot establish new populations with pollen, but only with grains. Fine scale population structure  analysis generally reveals that kinship decays within 50 to 100m, which should reflect the effective migration rate for seeds. With this figure, it might be difficult to colonize from S France to N Germany, so I don't know if there was a way of including occasional bigger jumps (seeds have wings, so they can occasionally get further away, 5-10km eg).
+
+
+---------------
 
 We have ~350 SNPs for 1100 individuals from 53 populations across Europe and we
 would like to simulate SNP data to assess if the observed genetic diversity

@@ -1,11 +1,6 @@
 library(ncdf4)
-library(sp)
-library(rgdal)
-library(maptools)
-library(gstat)
-library(raster)
-library(gdal)
 
+### read in the climate model info
 
 big.data<-nc_open("abiesalba_h1x1.cdf", write=FALSE, readunlim=TRUE, verbose=FALSE, auto_GMT=TRUE, suppress_dimvals=FALSE )
 
@@ -23,11 +18,8 @@ fpc.grid<-ncvar_get(big.data,"fpc_grid")
 
 tree.num <- lu.area
 for (t in 1:2204) {
-  tree.num[,,t]<-(1-lu.area[,,t])*area*fpc.grid[,,10,t]/40
+  tree.num[,,t]<-lu.area[,,t]*area*fpc.grid[,,10,t]/40
 }
 tree.num[is.na(tree.num)] <- 0
 
-
-# tree.num is the number of trees on each grid cell at each time point (70x55x2204)
-
-
+# tree.num is the possible number of trees on each grid cell at each time point (70x55x2204)
