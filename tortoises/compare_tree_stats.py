@@ -10,9 +10,9 @@ def run_sim(migr_matrix_file, nsamples, **kwargs):
     n = M.shape[0]
     print("Simulating on a landscape of {} patches.".format(n))
     # sample a total of nsamples, uniformly spread
-    sample_sizes = [int(np.ceil(nsamples/n)) for _ in range(n)]
+   o
     while sum(sample_sizes) < nsamples:
-        sample_sizes[np.random.choice(range(len(samples)))] -= 1
+        sample_sizes[np.random.choice(range(len(sample_sizes)))] -= 1
     population_configurations = [
         msprime.PopulationConfiguration(sample_size=k)
         for k in sample_sizes]
