@@ -16,3 +16,8 @@ In this repository:
     * [tortoises/make_migration.R](tortoises/make_migration.R) : an example of using the R package
       [landsim](https://githum.com/petrelharp/landsim) to make a discretization of a migration kernel
       on a landscape defined by a raster
+
+- [simple/](simple/) : Applications on simple landscapes.
+
+     * Currently only a 10-population stepping stone evaluated for varying
+     mutation rates.
