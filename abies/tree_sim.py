@@ -3,8 +3,14 @@ import msprime
 import numpy as np
 import landscape_msprime
 
-
 def read_tree_nums():
+    trees = np.loadtxt("tree_num_epsg3035.tsv")
+    tree_num = trees.reshape((2204,55,70))
+    return tree_num
+
+
+def read_tree_nums_orig():
+    # this is the original projection
     trees = netCDF4.Dataset("abiesalba_h1x1.cdf", "r", format="NETCDF4")
     tree_num = np.zeros(shape=(2204, 55, 70))
     for t in range(2204):
@@ -15,11 +21,29 @@ def read_tree_nums():
     return tree_num
 
 
+def read_coords():
+    locfile = open("coords_epsg3035.tsv", "r")
+    header = locfile.readline().split()
+    assert(header == ['"X"', '"Y"', '"pop"', '"id"', '"cell"'])
+    xylist = []
+    poplist = []
+    idlist = []
+    celllist = []
+    for line in locfile:
+        x, y, pop, id, cell = [x.strip('"\n') for x in line.split()]
+        xylist.append([float(x), float(y)])
+        poplist.append(pop)
+        idlist.append(id)
+        celllist.append(int(cell))
+    return xylist, poplist, idlist, celllist
+
+
 def population_expansion(num_replicates=1):
     tree_num = read_tree_nums()
     M = landscape_msprime.read_migration_matrix("abiesalba_longlat.migr.tsv")
     assert(M.shape[0] == M.shape[1])
     n = M.shape[0]
+    xylist, poplist, idlist, celllist = read_coords()
 
     # sample one individual per deme
     population_configurations = [
