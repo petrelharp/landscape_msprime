@@ -5,7 +5,7 @@ In this repository:
 
 - [landscape_msprime/](landscape_msprime/) A python package; install it by running
     ```
-    pip install .
+    python3 setup.py install --user
     ```
 
     * this includes tools for selecting and computing a large, randomly chosen set
