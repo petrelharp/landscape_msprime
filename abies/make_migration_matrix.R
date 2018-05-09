@@ -24,6 +24,7 @@ for (t in 1:2204) {
 tree.num[is.na(tree.num)] <- 0
 
 # Here is python code to read the NETCDF in, recorded for posterity
+# import netCDF4
 # 
 # def read_tree_nums_orig():
 #     # this is the original projection
@@ -51,8 +52,9 @@ europe_proj4 <- "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps
 dens_map <- ll_map / area(ll_map)
 the_map <- projectRaster(dens_map, crs=crs(europe_proj4))
 the_map <- the_map * prod(res(the_map))
+non_na <- !is.na(values(the_map))
 
-M <- migration_matrix(the_map,
+M <- migration_matrix(the_map, accessible=non_na,
                       kern="cauchy",
                       discretize=TRUE, disc.fact=50,
                       sigma=5e2, radius=sqrt(2)*max(res(the_map)), 
@@ -61,18 +63,26 @@ M <- migration_matrix(the_map,
 M[M < 1e-4] <- 0.0
 M@x <- M@x/(rowSums(M)[M@i+1L])
 
+# the resulting matrix will be zero-indexed (like python)
 Mijx <- data.frame(i=M@i,
-                   j=landsim:::p.to.j(M@p),
+                   j=landsim:::p.to.j(M@p) - 1L,
                    x=M@x)
+
+stopifnot(nrow(M) == ncol(M) && nrow(M) == sum(non_na))
 
 write.table(Mijx, file="abiesalba_epsg3035.migr.tsv", row.names=FALSE)
 
 # Sample assignments to grid squares
+# ... here "cell" will be the index of the cell in the *nonempty* squares, i.e., the rows/columns of M
 
 coords <- read.csv("coordsXY.csv", header=TRUE)
 samples <- spTransform(SpatialPoints(coords[,c("X","Y")], proj4string=crs("+proj=longlat")), proj4string(the_map))
 coords[,c("X","Y")] <- coordinates(samples)
-coords$cell <- cellFromXY(the_map, samples)
+stopifnot(sum(!is.na(values(the_map))) == nrow(M))
+coords$cell <- match(cellFromXY(the_map, samples), which(non_na))
+# reorder to match what we'll get from msprime
+coords <- coords[order(coords$cell),]
+coords$msp_id <- (1:nrow(coords))-1
 write.table(coords, "coords_epsg3035.tsv", row.names=FALSE)
 
 ## translate the tree numbers
@@ -84,40 +94,37 @@ trans_map <- function (x) {
     return(prod(res(the_map)) * values(out_map))
 }
 
+# only write out those locations corresponding to nonempty portions of the map
+# (i.e., the rows/columns of M)
 trans.tree.num <- apply(tree.num, 3, trans_map)
-write.table( t(trans.tree.num), file="tree_num_epsg3035.tsv", col.names=FALSE, row.names=FALSE, na="nan")
+write.table( t(trans.tree.num[non_na,]), file="tree_num_epsg3035.tsv", col.names=FALSE, row.names=FALSE, na="nan") 
 
 
-####
+#### UNUSED BELOW HERE
 # Here is the same thing in the original projection
+if (FALSE) {
 
-## produce migration matrices
-# for forwards-time
-#
-# This will produce a migration matrix
-# between all adjacent cells that have nonzero population
-# at *any* point in history
+    ## produce migration matrices
+    # for forwards-time
+    #
+    # This will produce a migration matrix
+    # between all adjacent cells that have nonzero population
+    # at *any* point in history
 
-# ROUGHLY a degree of lat/long is 1e5m
-M <- migration_matrix(ll_map,
-                      kern="cauchy",
-                      discretize=TRUE, disc.fact=50,
-                      sigma=5e2 * 1e-5, radius=sqrt(2)*max(res(ll_map)), 
-                      normalize=1)
+    # ROUGHLY a degree of lat/long is 1e5m
+    M <- migration_matrix(ll_map,
+                          kern="cauchy",
+                          discretize=TRUE, disc.fact=50,
+                          sigma=5e2 * 1e-5, radius=sqrt(2)*max(res(ll_map)), 
+                          normalize=1)
 
-M[M < 1e-4] <- 0.0
-M@x <- M@x/(rowSums(M)[M@i+1L])
+    M[M < 1e-4] <- 0.0
+    M@x <- M@x/(rowSums(M)[M@i+1L])
 
-Mijx <- data.frame(i=M@i,
-                   j=landsim:::p.to.j(M@p),
-                   x=M@x)
+    Mijx <- data.frame(i=M@i,
+                       j=landsim:::p.to.j(M@p),
+                       x=M@x)
 
-write.table(Mijx, file="abiesalba_longlat.migr.tsv", row.names=FALSE)
+    write.table(Mijx, file="abiesalba_longlat.migr.tsv", row.names=FALSE)
 
-
-# Sample assignments to grid squares
-
-coords <- read.csv("coordsXY.csv", header=TRUE)
-coords$cell <- cellFromXY(ll_map, coords[,c("X","Y")])
-samples <- SpatialPoints(coords[,c("X","Y")], proj4string=crs("+proj=longlat"))
-
+}
