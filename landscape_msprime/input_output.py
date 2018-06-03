@@ -7,6 +7,8 @@ def read_migration_matrix(fname):
     i = np.loadtxt(fname, skiprows=1, usecols=header.index('"i"'), dtype='int16')
     j = np.loadtxt(fname, skiprows=1, usecols=header.index('"j"'), dtype='int16')
     x = np.loadtxt(fname, skiprows=1, usecols=header.index('"x"'))
+    if (x < 0.0).any():
+        raise ValueError("Migration rates must be positive.")
     ids = list(set(list(set(i)) + list(set(j))))
     ids.sort()
     M = np.empty((len(ids), len(ids)))
