@@ -20,12 +20,17 @@ write.table(t(matrix(ntrees,ncol=ntimes)), file="test_tree_num.tsv",
 
 
 # migration matrix: nearest-neighbor, no diagonals
-ij <- matrix(1:prod(spatial_dims), nrow=spatial_dims[1])
+# ij contains zero-indexed index
+ij <- matrix(0:(prod(spatial_dims)-1), nrow=spatial_dims[1])
+same_rows <- outer(1:prod(spatial_dims), 1:prod(spatial_dims), 
+                  function (i, j) abs(row(ij)[i] - row(ij)[j]) == 0)
+same_cols <- outer(1:prod(spatial_dims), 1:prod(spatial_dims), 
+                  function (i, j) abs(col(ij)[i] - col(ij)[j]) == 0)
 adj_rows <- outer(1:prod(spatial_dims), 1:prod(spatial_dims), 
                   function (i, j) abs(row(ij)[i] - row(ij)[j]) == 1)
 adj_cols <- outer(1:prod(spatial_dims), 1:prod(spatial_dims), 
                   function (i, j) abs(col(ij)[i] - col(ij)[j]) == 1)
-adj <- (adj_rows | adj_cols)
+adj <- (adj_rows & same_cols) | (adj_cols & same_rows)
 # we need these to be zero-indexed!
 Mijx <- data.frame(i=row(adj)[adj]-1L, j=col(adj)[adj]-1L)
 Mijx$x <- 1/tapply(Mijx$j, Mijx$i, length)[Mijx$i+1L]
@@ -44,6 +49,7 @@ coords <- data.frame(pop=rep(1:npops, popsizes),
                      msp_id=seq_len(sum(popsizes)))
 coords$X <- pop_x[coords$pop]
 coords$Y <- pop_y[coords$pop]
+# the "-1" is to make this zero-indexed
 coords$cell <- ij[cbind(ceiling(coords$X), ceiling(coords$Y))]
 coords <- coords[,c("X", "Y", "pop", "id", "cell", "msp_id")]
 
