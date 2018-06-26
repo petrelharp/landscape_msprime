@@ -109,13 +109,13 @@ def population_expansion(num_replicates=1):
     t = ngens - 1
     x = tree_num[t,]
     last_N = M
-    while t > 0:
-        t -= 1
+    while t >= 0:
         t_ago = args.dt * (ngens - t)
+        t -= 1
         next_x = tree_num[t,]
         # the number of migrants from i to j is (M * x)[i,j]
         # and so the probability a lineage at j goes to i is (M*x)[i,j]/sum_k (M*x)[k,j]
-        N = M * x
+        N = (M.T * x).T
         N = N/N.sum(axis=0)
         N[np.isnan(N)] = 0.0
         for i in range(n):
