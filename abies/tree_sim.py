@@ -33,6 +33,13 @@ parser.add_argument("--num_reps", "-n", type=float, dest="num_reps", default=1,
                     help="number of replicates")
 parser.add_argument("--logfile", "-g", type=float, dest="logfile", 
                     help="name of log file")
+parser.add_argument("--generation_time", "-gt", type=int, dest="gen_time", 
+                    help="generation time")
+
+# time is measured in generation time
+# TODO: check whether this is true and time is divided correctly
+
+
 
 args = parser.parse_args()
 
@@ -45,7 +52,7 @@ if args.logfile is None:
 logfile = open(args.logfile, "w")
 
 # TODO: what to do about empty cells? This is a hack:
-MIN_SIZE = 100
+MIN_SIZE = 1e-10
 
 def read_tree_nums():
     # e.g. tree_num_epsg3035.tsv
@@ -72,14 +79,17 @@ def read_coords():
 
 def write_data(ts, key):
     # write out (a) the tree sequence, and (b) the haplotypes
+    # writes out the diploids -- we need twice as many samples
     treefile = os.path.join(args.basedir, "rep.{}.trees".format(key))
     ts.dump(treefile)
     hapfile = os.path.join(args.basedir, "haps.{}.tsv".format(key))
     # haplotypes are in a matrix with one column per individual and one row per variant
     haps = ts.genotype_matrix()
     np.savetxt(hapfile, haps, fmt="%d")
+    with open(os.path.join(args.basedir, "diploid.vcf"), "w") as vcf_file:
+        ts.write_vcf(vcf_file, 2)
 
-def population_expansion(num_replicates=1):
+def population_expansion():
     tree_num = read_tree_nums()
     # e.g. abiesalba_epsg3035.migr.tsv
     logfile.write("Reading migration matrix from {}\n".format(args.migr_mat_file))
@@ -90,48 +100,86 @@ def population_expansion(num_replicates=1):
     assert(n == tree_num.shape[1])
     logfile.write("Will run for {} generations, on {} populations.\n".format(ngens, n))
 
+
     # obtain sample numbers from coordinates
     # recall we've ordered the coordinates so that msprime sample numbers
     # match the input
     poplist, idlist, celllist = read_coords()
     nsamples = [0 for _ in range(n)]
+    #print(len(celllist))
+    #for k in range(n):
+    #    print([u==k for u in celllist])
     for k in range(n):
-        nsamples[k] = sum([u == k for u in celllist])
+        nsamples[k] = 2*sum([u == k for u in celllist])
+    # we chose twice as many samples so we can merge them as a diploid
+    #print(celllist)
+    #print(nsamples)
+    #print(sum(nsamples))
 
+
+    init_gr=[]	
+    for k in range(n):
+        if tree_num[ngens-2,k]==0:
+            init_gr.append(0)
+        else:
+            init_gr.append(np.log(tree_num[ngens-1,k]/tree_num[ngens-2,k])/(args.dt/args.gen_time))
+    #print(init_gr)
+	
     population_configurations = [
         msprime.PopulationConfiguration(sample_size=nsamples[k],
-            initial_size = max(MIN_SIZE, tree_num[ngens-1,k]))
+            initial_size = max(MIN_SIZE, tree_num[ngens-1,k]), 
+            growth_rate=init_gr[k])
         for k in range(n) ]
+    #print(population_configurations)
 
     # TODO: check the direction of time in tree_num ?!?!?
     # step forwards through history
     demographic_events = []
     t = ngens - 1
-    x = tree_num[t,]
+    last_x = tree_num[t,]
     last_N = M
     while t >= 0:
         t_ago = args.dt * (ngens - t)
         t -= 1
-        next_x = tree_num[t,]
-        # the number of migrants from i to j is (M * x)[i,j]
-        # and so the probability a lineage at j goes to i is (M*x)[i,j]/sum_k (M*x)[k,j]
-        N = (M.T * x).T
-        N = N/N.sum(axis=0)
+        #print(x)
+        x = tree_num[t,]
+        x_cut=[]
+        for i in range(len(x)):
+            if x[i] < 50:
+                x_cut.append(0)
+            elif x[i] > 500:
+                x_cut.append(500)
+            else:
+                x_cut.append(x[i])
+        #print(x_cut)
+        N=np.zeros((n,n))
+        for i in range(n):
+            for j in range(n):
+                if last_x[i]==0:
+                    N[i,j]=0
+                elif last_x[i]>1 and x[i]<1:
+                    N[i,j]=x_cut[j]*M[j,i]/((M.T*x_cut).sum(axis=1)[i])
+                else:
+                    N[i,j]=x_cut[j]*M[j,i]/last_x[i]
+        #print(N)
         N[np.isnan(N)] = 0.0
         for i in range(n):
             N[i,i] = 0.0
-            if next_x[i] != x[i]:
+            if last_x[i] != x[i]:
+                gr=0
+                if x[i]!=0 and last_x[i]!=0:
+                    gr=np.log(last_x[i]/x[i])/(args.dt/args.gen_time)
                 demographic_events.append(
                     msprime.PopulationParametersChange(
-                        time=t_ago, initial_size=max(MIN_SIZE, x[i]), 
-                        population_id=i, growth_rate=0))
+                        time=t_ago/args.gen_time, initial_size=max(MIN_SIZE, x[i]), 
+                        population_id=i, growth_rate=gr))
         for i in range(n):
             for j in range(n):
                 if (i != j) and (N[i,j] != last_N[i,j]):
                     demographic_events.append(
                         msprime.MigrationRateChange(
-                            time=t_ago, rate=N[i,j], matrix_index=(i,j)))
-        x = next_x
+                            time=t_ago/args.gen_time, rate=N[i,j], matrix_index=(i,j)))
+        last_x = x
         last_N = N
 
     for x in demographic_events:
@@ -148,12 +196,14 @@ def population_expansion(num_replicates=1):
 
     for j, rep in enumerate(replicates):
         write_data(rep, j)
-        # # uncomment this to see all the genealogical trees:
-        # for t in rep.trees():
-        #     print(t.draw(format='unicode'))
+        ## uncomment this to see all the genealogical trees:
+        #for t in rep.trees():
+        #    print(t.draw(format='unicode'))
 
     return True
 
 
 if __name__ == "__main__":
     population_expansion()
+
+
