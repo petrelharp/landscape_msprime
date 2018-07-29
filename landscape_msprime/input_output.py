@@ -11,7 +11,7 @@ def read_migration_matrix(fname):
         raise ValueError("Migration rates must be positive.")
     ids = list(set(list(set(i)) + list(set(j))))
     ids.sort()
-    M = np.empty((len(ids), len(ids)))
+    M = np.zeros((len(ids), len(ids)))
     for ii, jj, xx in zip(i, j, x):
         M[ii, jj] = xx
     # msprime wants diag elements to be zero
